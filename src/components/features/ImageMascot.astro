@@ -42,9 +42,7 @@ const corner = config.corner ?? "bottom-left";
 const offsetX = config.offset?.x ?? 16;
 const offsetY = config.offset?.y ?? 16;
 const width = config.width ?? 200;
-const menuItems = (config.menus?.items ?? []).filter(
-	(item) => item && item.label,
-);
+const menuItems = (config.menus?.items ?? []).filter((item) => item?.label);
 // 菜单默认对齐到看板娘所在的那一侧
 const menuAlign =
 	config.menus?.align ?? (corner.includes("right") ? "right" : "left");
