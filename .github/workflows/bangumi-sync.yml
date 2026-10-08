@@ -40,16 +40,25 @@ jobs:
           node-version: 22
 
       - name: Fetch Bangumi collection
+        id: fetch
+        # 抓取失败时不要让任务直接中断，先把诊断文件提交回仓库便于排查
+        continue-on-error: true
         run: node scripts/fetch-bangumi.mjs
 
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/constants/bangumi-data.json
+          git add src/constants/bangumi-data.json src/constants/bangumi-sync-status.json 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "数据无变化，跳过提交"
           else
             git commit -m "chore: 同步 Bangumi 收藏数据"
             git push
           fi
+
+      - name: Fail if fetch failed
+        if: steps.fetch.outcome == 'failure'
+        run: |
+          echo "抓取失败，详见 src/constants/bangumi-sync-status.json"
+          exit 1
