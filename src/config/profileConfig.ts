@@ -9,10 +9,10 @@ export const profileConfig: ProfileConfig = {
 	avatar: "assets/images/avatar.avif",
 
 	// 名字
-	name: "573787954",
+	name: "lemon",
 
 	// 个人签名
-	bio: "Hello, I'm 573787954.",
+	bio: "Hello, I'm lemon.",
 
 	// 链接配置
 	// 已经预装的图标集：fa7-brands，fa7-regular，fa7-solid，material-symbols，simple-icons
