@@ -1,31 +1,32 @@
 name: Sync Bangumi data
 
-# 为什么需要这个工作流：
-#   本机网络对 Bangumi 系域名（api.bgm.tv / api.bangumi.pro / api.bangumi.one）存在 SNI 阻断，
-#   浏览器端 dynamic 模式必然拉取失败。这里用 GitHub 的服务器定时抓取收藏数据，
-#   提交进仓库后站点直接读本地 JSON（src/constants/bangumi-data.json），无需任何代理。
+# 状态：已搁置（2026-10 起暂停自动运行）
 #
-# 诊断：脚本输出与网络探测结果会写入 ci-diagnostics/ 并提交回仓库，
-#       这样在无法查看 Actions 日志时也能排查问题。
+# 背景：本机网络对 Bangumi 系域名（api.bgm.tv / api.bangumi.pro / api.bangumi.one）存在 SNI 阻断，
+#       浏览器端 dynamic 模式必然拉取失败，于是改用 GitHub 的服务器抓取并提交进仓库。
+#
+# 已验证：GitHub Runner 能正常访问 api.bgm.tv（探测返回 HTTP 200，DNS 解析正常）——
+#         **这条路不需要翻墙**。当前唯一的问题是拉到的收藏是空数组，
+#         即 siteConfig.bangumi.userId（1288644）不正确，或该用户的收藏未设为公开。
+#
+# 想恢复：把下面 on: 里的 schedule 取消注释即可每天自动同步；
+#         也可以直接在 Actions 页面手动触发（workflow_dispatch）。
+#         确认 userId 正确 / 收藏公开后，手动跑一次就会生成 src/constants/bangumi-data.json。
 
 on:
-  schedule:
-    # 每天 03:17 UTC（北京时间 11:17）同步一次
-    - cron: "17 3 * * *"
-  # 支持在 Actions 页面手动触发
+  # schedule:
+  #   # 每天 03:17 UTC（北京时间 11:17）同步一次
+  #   - cron: "17 3 * * *"
   workflow_dispatch:
-  push:
-    # 本工作流或抓取脚本变更时立刻跑一次；
-    # 注意：数据文件与诊断目录的提交不在 paths 里，避免“提交 → 触发 → 再提交”的循环
-    paths:
-      - ".github/workflows/bangumi-sync.yml"
-      - "scripts/fetch-bangumi.mjs"
+    inputs:
+      user_id:
+        description: "Bangumi 用户 ID（留空则用仓库里的默认值）"
+        required: false
+        default: ""
 
-# 允许工作流把抓取结果提交回仓库
 permissions:
   contents: write
 
-# 同一时间只跑一个，避免并发提交冲突
 concurrency:
   group: bangumi-sync
   cancel-in-progress: false
@@ -43,60 +44,16 @@ jobs:
           node-version: 22
 
       - name: Fetch Bangumi collection
-        id: fetch
-        # 抓取失败时不要直接中断，先让后面的步骤把诊断信息提交回仓库
-        continue-on-error: true
-        run: |
-          mkdir -p ci-diagnostics
-          set +e
-          node scripts/fetch-bangumi.mjs > ci-diagnostics/fetch-output.txt 2>&1
-          code=$?
-          echo "exit_code=$code" >> ci-diagnostics/fetch-output.txt
-          echo "脚本退出码: $code"
-          exit $code
+        run: node scripts/fetch-bangumi.mjs
+        env:
+          BANGUMI_USER_ID: ${{ inputs.user_id }}
 
-      - name: Collect diagnostics
-        if: always()
-        run: |
-          mkdir -p ci-diagnostics
-          UA="573787954-blog/1.0 (https://github.com/573787954/Firefly)"
-          {
-            echo "fetch step outcome: ${{ steps.fetch.outcome }}"
-            echo "runner: $(uname -a)"
-            echo "node: $(node --version)"
-            echo
-            echo "--- DNS: api.bgm.tv ---"
-            getent hosts api.bgm.tv || echo "(getent 无结果)"
-            echo
-            echo "--- DNS: api.bangumi.one ---"
-            getent hosts api.bangumi.one || echo "(getent 无结果)"
-            echo
-            echo "--- curl 官方接口 ---"
-            curl -sS -m 25 -o /dev/null -w "http_code=%{http_code} time=%{time_total}s\n" \
-              -A "573787954-blog/1.0 (https://github.com/573787954/Firefly)" \
-              https://api.bgm.tv/v0/subjects/8 || echo "curl 失败，退出码 $?"
-            echo
-            echo "--- 用户是否存在: GET /v0/users/1288644 ---"
-            curl -sS -m 25 -A "$UA" -o /tmp/dsh-user.json -w "http_code=%{http_code}\n" \
-              https://api.bgm.tv/v0/users/1288644 || echo "curl 失败，退出码 $?"
-            head -c 400 /tmp/dsh-user.json; echo
-            echo
-            echo "--- 收藏原始响应: GET /v0/users/1288644/collections?subject_type=2&limit=3 ---"
-            curl -sS -m 25 -A "$UA" -o /tmp/dsh-col.json -w "http_code=%{http_code}\n" \
-              "https://api.bgm.tv/v0/users/1288644/collections?subject_type=2&limit=3&offset=0" || echo "curl 失败，退出码 $?"
-            head -c 600 /tmp/dsh-col.json; echo
-            echo
-            echo "--- 生成的文件 ---"
-            ls -la src/constants/ 2>&1 || true
-          } > ci-diagnostics/network-probe.txt 2>&1
-
-      - name: Commit and push results
-        if: always()
+      - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # 注意：不要写成 git add <多个路径>——只要其中一个路径不存在，
-          # git 会整体报错且什么都不暂存（配合 || true 会静默跳过提交）
+          # git 会整体报错且什么都不暂存
           git add -A
           git status --short
           if git diff --staged --quiet; then
@@ -105,9 +62,3 @@ jobs:
             git commit -m "chore: 同步 Bangumi 收藏数据"
             git push
           fi
-
-      - name: Fail if fetch failed
-        if: steps.fetch.outcome == 'failure'
-        run: |
-          echo "抓取失败，详见 ci-diagnostics/ 与 src/constants/bangumi-sync-status.json"
-          exit 1
