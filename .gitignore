@@ -47,3 +47,6 @@ package/
 .codex*
 .claude
 .mimocode
+
+# Bangumi 同步诊断文件（每次运行都会变，不入库）
+src/constants/bangumi-sync-status.json

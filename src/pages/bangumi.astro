@@ -26,6 +26,7 @@ if (!siteConfig.pages.bangumi) {
 // 由 GitHub Actions 定时运行 scripts/fetch-bangumi.mjs 抓取并提交进仓库。
 // 原因：本机网络对 Bangumi 系域名存在 SNI 阻断，浏览器端 dynamic 模式必然失败。
 // 有缓存 → 直接用缓存；没有缓存 → 回退到直接请求 API（在能访问 Bangumi 的机器上仍可用）。
+// 缓存数据由 GitHub Actions 定时抓取生成（见 .github/workflows/bangumi-sync.yml）
 type LocalBangumiData = {
 	generatedAt?: string;
 	userId?: string;
@@ -50,6 +51,9 @@ try {
 } catch (error) {
 	console.warn("[Bangumi] 读取本地缓存失败，将回退到直接请求 API：", error);
 }
+
+// 是否拿到了可用的本地缓存（拿到就完全不请求 API）
+const hasLocalCache = !!localBangumiData?.categories;
 
 // 获取构建时间（有本地缓存时显示缓存的数据更新时间）
 const buildTime = formatDateI18n(
@@ -201,16 +205,16 @@ if (!isDynamic) {
 		if (enabled && categoryMap[categoryKey as keyof typeof categoryMap]) {
 			const categoryInfo = categoryMap[categoryKey as keyof typeof categoryMap];
 			try {
-				// 优先用本地缓存（GitHub Actions 定时抓取写入），没有再回退到请求 API
-				const cached = localBangumiData?.categories?.[categoryKey];
-				const data =
-					cached && cached.length > 0
-						? cached
-						: await fetchBangumiData(
-								// biome-ignore lint/style/noNonNullAssertion: Checked by isUserIdConfigured
-								bangumiConfig.username!,
-								categoryInfo.subjectType,
-							);
+				// 有本地缓存就整体以缓存为准（某个分类为空是正常的，不能因此回退去请求 API，
+				// 否则第一个空分类就会失败并 break，导致后面的分类全都不加载）；
+				// 完全没有缓存时才回退到直接请求 API。
+				const data = hasLocalCache
+					? (localBangumiData?.categories?.[categoryKey] ?? [])
+					: await fetchBangumiData(
+							// biome-ignore lint/style/noNonNullAssertion: Checked by isUserIdConfigured
+							bangumiConfig.username!,
+							categoryInfo.subjectType,
+						);
 				// NSFW 拦截：hide 模式下过滤掉 NSFW 条目，保持标签页计数一致
 				const filteredData = filterNsfw(
 					data,
@@ -218,6 +222,11 @@ if (!isDynamic) {
 					isBangumiNsfw,
 				);
 				bangumiData[categoryKey] = filteredData;
+				// 用本地缓存时，不显示空分类（避免出现一堆「暂无数据」的标签页）；
+				// 某分类以后有收藏了，下一次同步会自动出现。
+				if (hasLocalCache && filteredData.length === 0) {
+					continue;
+				}
 				tabs.push({
 					id: categoryKey,
 					name: categoryInfo.name,
