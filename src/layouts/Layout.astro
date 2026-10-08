@@ -9,6 +9,7 @@ import FontSetup from "@components/features/FontSetup.astro";
 import GithubCardManager from "@components/features/GithubCardManager.astro";
 import MusicManager from "@components/features/MusicManager.astro";
 import MusicPlayerView from "@components/features/MusicPlayerView.astro";
+import CursorTrail from "@components/features/CursorTrail.astro";
 import SakuraEffect from "@components/features/SakuraEffect.astro";
 import WavesEffect from "@components/features/WavesEffect.astro";
 import ConfigCarrier from "@components/layout/ConfigCarrier.astro";
@@ -566,6 +567,9 @@ const ogImageAlt = propsOgImageAlt ?? pageTitle;
 
     <!-- Sakura Effect -->
     <SakuraEffect />
+
+    <!-- Cursor Trail Effect（鼠标拖尾） -->
+    <CursorTrail />
 
     <!-- Water Waves Effect -->
     <WavesEffect />

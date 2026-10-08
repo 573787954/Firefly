@@ -9,7 +9,8 @@ export const musicPlayerConfig: MusicPlayerConfig = {
 	showInSidebar: true,
 
 	// 使用方式："meting" 使用 Meting API，"local" 使用本地音乐列表
-	mode: "local",
+	// 当前：通过 Meting API 接入网易云音乐歌单（实时拉取）
+	mode: "meting",
 
 	// 默认音量 (0-1)
 	volume: 0.7,
@@ -23,20 +24,22 @@ export const musicPlayerConfig: MusicPlayerConfig = {
 	// Meting API 配置
 	meting: {
 		// Meting API 地址
-		// 默认使用官方 API，也可以使用自定义 API
-		api: "https://api.i-meto.com/meting/api?server=:server&type=:type&id=:id&r=:r",
+		// 实测（歌单 641401374）：injahow 0.42s / 直出 audio/mpeg；i-meto 2.6s / 返回带 auth 令牌的时效链接
+		// 因此把更快的 injahow 设为主接口，i-meto 作为兜底
+		api: "https://api.injahow.cn/meting/?server=:server&type=:type&id=:id",
 		// 音乐平台：netease=网易云音乐, tencent=QQ音乐, kugou=酷狗音乐, xiami=虾米音乐, baidu=百度音乐
 		server: "netease",
 		// 类型：song=单曲, playlist=歌单, album=专辑, search=搜索, artist=艺术家
 		type: "playlist",
 		// 歌单/专辑/单曲 ID 或搜索关键词
-		id: "10046455237",
+		// 网易云歌单：https://music.163.com/playlist?id=641401374
+		id: "641401374",
 		// 认证 token（可选）
 		auth: "",
 		// 备用 API 配置（当主 API 失败时使用）
+		// 注意：原先的 api.moeyao.cn 会在 JSON 前输出 PHP 警告，导致 res.json() 必然失败，已移除
 		fallbackApis: [
-			"https://api.injahow.cn/meting/?server=:server&type=:type&id=:id",
-			"https://api.moeyao.cn/meting/?server=:server&type=:type&id=:id",
+			"https://api.i-meto.com/meting/api?server=:server&type=:type&id=:id",
 		],
 	},
 

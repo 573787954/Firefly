@@ -1,4 +1,6 @@
 ---
+import { Image } from "astro:assets";
+import mascotImage from "@/assets/images/mascot-paperplane.png";
 import ImageWrapper from "@/components/common/ImageWrapper.astro";
 import ScrollDownIndicator from "@/components/controls/ScrollDownIndicator.astro";
 import BackgroundPlayer from "@/components/features/BackgroundPlayer.astro";
@@ -536,6 +538,22 @@ const wallpaperPosition = state.isFullscreenMode
     <div id="banner-dim-container" class="absolute inset-0 z-10 pointer-events-none">
         {state.showBannerDim && <div class="banner-dim-overlay absolute inset-0" style={`background: rgba(0, 0, 0, ${state.dimOpacity})`}></div>}
     </div>
+
+    <!-- 横幅右上角装饰图：骑纸飞机的角色 -->
+    <!-- 图片文件：src/assets/images/mascot-paperplane.png（已抠掉白底，带透明通道）
+         想挪位置改 right-* / top-*；想改大小改 w-*；不想要就删掉下面整段 -->
+    {state.isBannerMode && (
+        <div class="pointer-events-none absolute top-[5.5rem] right-4 z-30 w-24 select-none sm:right-6 sm:w-32 lg:right-10 lg:w-40">
+            <Image
+                src={mascotImage}
+                alt=""
+                width={304}
+                height={242}
+                class="h-auto w-full"
+                loading="eager"
+            />
+        </div>
+    )}
 
     <div id="banner-overlay-container" class="absolute inset-0 z-20 pointer-events-none transition-swup-fade">    <!-- Home page text overlay - 始终渲染以便切换模式时控制显示 -->
     <BannerHomeTextOverlay showHomeText={state.showHomeText} initialRandomSubtitle={state.initialRandomSubtitle} />

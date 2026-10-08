@@ -1,0 +1,223 @@
+---
+/**
+ * 鼠标拖尾特效（Canvas 实现，无第三方依赖）
+ *
+ * 想关闭：把下面 ENABLE 改成 false，或删掉布局里的 <CursorTrail />
+ * 想调效果：改下面的常量即可
+ *
+ * 行为：
+ * - 鼠标移动留下主题色光点，自动渐隐、轻微上飘；鼠标点击爆开一圈光点
+ * - 颜色跟随 siteConfig.themeColor.hue（当前 165），换主题色后自动重建贴图
+ * - 自动适配明暗主题：
+ *     暗色 → 亮色光晕 + lighter 混合（发光感）
+ *     亮色 → 饱和实色 + source-over（白底上 lighter 会完全看不见）
+ * - 触屏设备（无精确指针）自动不启用
+ * - 系统开启「减弱动态效果」时自动不启用
+ */
+const ENABLE = true;
+// 同时存在的最大粒子数（越大拖尾越长）
+const MAX_PARTICLES = 180;
+// 每移动多少像素生成一个粒子（越小越密）
+const EMIT_DISTANCE = 4;
+// 点击爆开的粒子数
+const CLICK_BURST = 20;
+// 画布层级（需高于导航栏 z-50 与看板娘 z-1000）
+const Z_INDEX = 9999;
+// 绘制尺寸倍率（越大光点越大越显眼）
+const SIZE_SCALE = 4.2;
+---
+
+{
+	ENABLE && (
+		<script is:inline define:vars={{ MAX_PARTICLES, EMIT_DISTANCE, CLICK_BURST, Z_INDEX, SIZE_SCALE }}>
+			(function () {
+			  // 尊重系统「减弱动态效果」
+			  try {
+			    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+			    // 仅在有精确指针（鼠标）的设备上启用
+			    if (window.matchMedia && !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+			  } catch (e) {}
+
+			  // 幂等：swup 切页会重跑脚本，避免重复创建
+			  var prev = window.__cursorTrail;
+			  if (prev && prev.canvas && prev.canvas.isConnected) return;
+
+			  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+			  var canvas = document.createElement("canvas");
+			  canvas.id = "cursor-trail-canvas";
+			  canvas.setAttribute("aria-hidden", "true");
+			  canvas.style.cssText =
+			    "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:" + Z_INDEX;
+			  document.body.appendChild(canvas);
+			  var ctx = canvas.getContext("2d");
+
+			  function resize() {
+			    canvas.width = Math.floor(window.innerWidth * dpr);
+			    canvas.height = Math.floor(window.innerHeight * dpr);
+			  }
+			  resize();
+			  window.addEventListener("resize", resize);
+
+			  function readHue() {
+			    try {
+			      var v = getComputedStyle(document.documentElement).getPropertyValue("--hue").trim();
+			      var n = parseFloat(v);
+			      if (!isNaN(n)) return n;
+			    } catch (e) {}
+			    return 165;
+			  }
+
+			  function isDarkMode() {
+			    return document.documentElement.classList.contains("dark");
+			  }
+
+			  // 预渲染光点贴图（比每帧创建渐变快很多）
+			  var SS = 64;
+			  function makeSprite(hue, dark) {
+			    var s = document.createElement("canvas");
+			    s.width = s.height = SS;
+			    var c = s.getContext("2d");
+			    var g = c.createRadialGradient(SS / 2, SS / 2, 0, SS / 2, SS / 2, SS / 2);
+			    if (dark) {
+			      // 暗色背景：亮色光晕 + lighter，发光感最强
+			      g.addColorStop(0, "hsla(" + hue + ",100%,97%,1)");
+			      g.addColorStop(0.25, "hsla(" + hue + ",95%,80%,0.9)");
+			      g.addColorStop(0.6, "hsla(" + hue + ",90%,70%,0.35)");
+			      g.addColorStop(1, "hsla(" + hue + ",90%,70%,0)");
+			    } else {
+			      // 亮色背景：必须用饱和的中间调配实色，否则在白底上等于没画
+			      g.addColorStop(0, "hsla(" + hue + ",95%,42%,1)");
+			      g.addColorStop(0.3, "hsla(" + hue + ",92%,50%,0.85)");
+			      g.addColorStop(0.65, "hsla(" + hue + ",88%,58%,0.3)");
+			      g.addColorStop(1, "hsla(" + hue + ",88%,58%,0)");
+			    }
+			    c.fillStyle = g;
+			    c.fillRect(0, 0, SS, SS);
+			    return s;
+			  }
+
+			  var spriteHue = null;
+			  var spriteDark = null;
+			  var spriteLight = null;
+			  function ensureSprites(hue) {
+			    if (spriteHue === hue && spriteDark && spriteLight) return;
+			    spriteHue = hue;
+			    spriteDark = makeSprite(hue, true);
+			    spriteLight = makeSprite(hue, false);
+			  }
+			  ensureSprites(readHue());
+
+			  var parts = [];
+			  var lastX = null;
+			  var lastY = null;
+			  var lastHueCheck = 0;
+
+			  function emit(x, y, burst) {
+			    var n = burst ? CLICK_BURST : 1;
+			    for (var i = 0; i < n; i++) {
+			      var ang = Math.random() * Math.PI * 2;
+			      var sp = burst ? 0.8 + Math.random() * 2.2 : 0.15 + Math.random() * 0.5;
+			      parts.push({
+			        x: x,
+			        y: y,
+			        vx: Math.cos(ang) * (burst ? sp : sp * 0.4),
+			        vy: Math.sin(ang) * (burst ? sp : sp * 0.4) - (burst ? 0 : 0.3),
+			        r: burst ? 4 + Math.random() * 3.5 : 2.6 + Math.random() * 3,
+			        life: 1,
+			        decay: burst ? 0.009 + Math.random() * 0.008 : 0.012 + Math.random() * 0.01
+			      });
+			    }
+			    if (parts.length > MAX_PARTICLES) parts.splice(0, parts.length - MAX_PARTICLES);
+			  }
+
+			  var running = false;
+			  function loop() {
+			    // 若被 swup 摘掉则重新挂回
+			    if (!canvas.isConnected) document.body.appendChild(canvas);
+
+			    var dark = isDarkMode();
+			    var sprite = dark ? spriteDark : spriteLight;
+
+			    ctx.clearRect(0, 0, canvas.width, canvas.height);
+			    // 亮色底上 lighter 会因为「白+色=白」而完全失效，必须切回 source-over
+			    ctx.globalCompositeOperation = dark ? "lighter" : "source-over";
+			    for (var i = parts.length - 1; i >= 0; i--) {
+			      var p = parts[i];
+			      p.x += p.vx;
+			      p.y += p.vy;
+			      p.vy += 0.012;
+			      p.vx *= 0.985;
+			      p.vy *= 0.985;
+			      p.life -= p.decay;
+			      if (p.life <= 0) {
+			        parts.splice(i, 1);
+			        continue;
+			      }
+			      var size = p.r * (0.5 + p.life * 0.8) * dpr * SIZE_SCALE;
+			      ctx.globalAlpha = Math.min(1, p.life * (dark ? 1.15 : 1));
+			      ctx.drawImage(sprite, p.x * dpr - size / 2, p.y * dpr - size / 2, size, size);
+			    }
+			    ctx.globalAlpha = 1;
+			    ctx.globalCompositeOperation = "source-over";
+
+			    if (parts.length) {
+			      requestAnimationFrame(loop);
+			    } else {
+			      running = false;
+			      ctx.clearRect(0, 0, canvas.width, canvas.height);
+			    }
+			  }
+
+			  function start() {
+			    if (running) return;
+			    running = true;
+			    requestAnimationFrame(loop);
+			  }
+
+			  window.addEventListener(
+			    "pointermove",
+			    function (e) {
+			      if (e.pointerType && e.pointerType !== "mouse") return;
+			      // 主题色切换后重建贴图（最多每秒检查一次）
+			      var now = Date.now();
+			      if (now - lastHueCheck > 1000) {
+			        lastHueCheck = now;
+			        ensureSprites(readHue());
+			      }
+			      if (lastX === null) {
+			        lastX = e.clientX;
+			        lastY = e.clientY;
+			        return;
+			      }
+			      var dx = e.clientX - lastX;
+			      var dy = e.clientY - lastY;
+			      if (dx * dx + dy * dy >= EMIT_DISTANCE * EMIT_DISTANCE) {
+			        lastX = e.clientX;
+			        lastY = e.clientY;
+			        emit(e.clientX, e.clientY, false);
+			        start();
+			      }
+			    },
+			    { passive: true }
+			  );
+
+			  window.addEventListener(
+			    "pointerdown",
+			    function (e) {
+			      if (e.pointerType && e.pointerType !== "mouse") return;
+			      emit(e.clientX, e.clientY, true);
+			      start();
+			    },
+			    { passive: true }
+			  );
+
+			  window.__cursorTrail = {
+			    canvas: canvas,
+			    get particleCount() {
+			      return parts.length;
+			    }
+			  };
+			})();
+		</script>
+	)
+}
