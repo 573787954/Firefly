@@ -84,7 +84,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A src/constants/bangumi-data.json src/constants/bangumi-sync-status.json ci-diagnostics 2>/dev/null || true
+          # 注意：不要写成 git add <多个路径>——只要其中一个路径不存在，
+          # git 会整体报错且什么都不暂存（配合 || true 会静默跳过提交）
+          git add -A
           git status --short
           if git diff --staged --quiet; then
             echo "无变化，跳过提交"
