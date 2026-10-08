@@ -73,3 +73,32 @@ export type Live2DWidgetConfig = {
 		mobileBreakpoint?: number; // 移动端断点，默认 768
 	};
 };
+
+// 静态图片看板娘配置
+// 用于把一张普通的平面插画（PNG/WebP，带透明底效果最佳）当作看板娘：
+// Live2D/Spine 需要带骨骼绑定的模型文件，平面图无法直接用作 Live2D 模型。
+export type ImageMascotConfig = {
+	enable: boolean; // 是否启用
+	image: string; // 图片路径：/ 开头为 public 目录，也可以是远程 URL
+	width?: number; // 显示宽度（px），高度按图片比例自适应，默认 200
+	corner?: "bottom-left" | "bottom-right" | "top-left" | "top-right"; // 默认停留角落
+	offset?: {
+		x?: number; // 距左右边缘间距（px），默认 16
+		y?: number; // 距上下边缘间距（px），默认 16
+	};
+	draggable?: boolean; // 是否可拖动（拖动后的位置记在浏览器本地），默认 true
+	zIndex?: number; // 层级，默认 999
+	menus?: {
+		align?: "left" | "right"; // 菜单对齐方式，默认跟随角落
+		items?: { icon?: string; label: string; action: string }[]; // action 支持 home/scrollToTop/resetPosition/hide
+	};
+	tips?: {
+		enable?: boolean; // 气泡开关，默认 true
+		messages?: string[]; // 点击看板娘时随机显示一条
+		duration?: number; // 每条显示时长（ms），默认 3000
+	};
+	responsive?: {
+		hideOnMobile?: boolean; // 是否在移动端隐藏，默认 true
+		mobileBreakpoint?: number; // 移动端断点，默认 768
+	};
+};

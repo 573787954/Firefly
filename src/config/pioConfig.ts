@@ -1,4 +1,8 @@
-import type { Live2DWidgetConfig, SpineModelConfig } from "../types/pioConfig";
+import type {
+	ImageMascotConfig,
+	Live2DWidgetConfig,
+	SpineModelConfig,
+} from "../types/pioConfig";
 
 // Spine 看板娘配置
 export const spineModelConfig: SpineModelConfig = {
@@ -84,8 +88,8 @@ export const spineModelConfig: SpineModelConfig = {
 
 // Live2D 看板娘配置 (使用 l2d-widget 库，文档：https://l2d-widget.hacxy.cn)
 export const live2dWidgetConfig: Live2DWidgetConfig = {
-	// Live2D 看板娘开关
-	enable: true,
+	// Live2D 看板娘开关（已改用下面的静态图片看板娘，因此关闭）
+	enable: false,
 	// 模型配置，支持单个模型或数组（多模型切换）
 	// 这里只用仓库里的本地模型，避免依赖外部 CDN（本机网络对部分境外域名有阻断）
 	model: [
@@ -181,4 +185,47 @@ export const live2dWidgetConfig: Live2DWidgetConfig = {
 		// 移动端断点
 		mobileBreakpoint: 768,
 	},
+};
+
+// 静态图片看板娘配置
+// 说明：Live2D / Spine 都需要带骨骼绑定的模型文件，一张平面插画无法作为 Live2D 模型渲染；
+//       如果你只有图片（PNG/WebP），就用这一项——支持透明底、可拖动、点击弹菜单。
+export const imageMascotConfig: ImageMascotConfig = {
+	// 开关
+	enable: true,
+	// 图片路径（放在 public 目录下，用 / 开头的路径）
+	image: "/assets/images/mascot-amiya.webp",
+	// 显示宽度（px），高度按图片比例自适应
+	width: 200,
+	// 默认停留角落：bottom-left | bottom-right | top-left | top-right
+	corner: "bottom-left",
+	// 距边缘的间距（px）
+	offset: { x: 16, y: 16 },
+	// 是否允许拖动（拖动后的位置记在浏览器本地，刷新后保持；菜单里有「重置位置」还原）
+	draggable: true,
+	// 层级
+	zIndex: 999,
+	// 点击看板娘弹出的菜单（action 支持 home / scrollToTop / resetPosition / hide）
+	menus: {
+		align: "left",
+		items: [
+			{ icon: "mdi:home", label: "返回主页", action: "home" },
+			{ icon: "mdi:arrow-up", label: "返回顶部", action: "scrollToTop" },
+			{ icon: "mdi:restore", label: "重置位置", action: "resetPosition" },
+			{ icon: "mdi:eye-off-outline", label: "隐藏", action: "hide" },
+		],
+	},
+	// 点击时随机显示的一句话
+	tips: {
+		enable: true,
+		messages: [
+			"你好呀，我是这里的看板娘～",
+			"可以把我的拖到任意位置哦",
+			"记得常来看看！",
+			"今天也要加油鸭 ✨",
+		],
+		duration: 3000,
+	},
+	// 移动端隐藏
+	responsive: { hideOnMobile: true, mobileBreakpoint: 768 },
 };

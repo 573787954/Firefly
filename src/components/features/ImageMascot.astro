@@ -1,0 +1,455 @@
+---
+/**
+ * 静态图片看板娘
+ *
+ * 用途：Live2D / Spine 看板娘都需要带骨骼绑定的模型文件，一张平面插画无法直接作为
+ *       Live2D 模型；这个组件让普通图片（PNG/WebP，带透明底效果最佳）也能当看板娘。
+ *
+ * 能力：
+ * - 固定在页面某个角落（四角可选），移动端可自动隐藏
+ * - 可拖动到任意位置，位置记在 localStorage，刷新/切页后保持；菜单里可「重置位置」
+ * - 点击弹出菜单（返回主页 / 返回顶部 / 重置位置 / 隐藏）
+ * - 点击时随机显示一句气泡文案
+ *
+ * 配置见 src/config/pioConfig.ts 的 imageMascotConfig
+ */
+import { Icon } from "astro-icon/components";
+
+interface MenuItem {
+	icon?: string;
+	label: string;
+	action: string;
+}
+
+interface Props {
+	config: {
+		enable: boolean;
+		image: string;
+		width?: number;
+		corner?: "bottom-left" | "bottom-right" | "top-left" | "top-right";
+		offset?: { x?: number; y?: number };
+		draggable?: boolean;
+		zIndex?: number;
+		menus?: { align?: "left" | "right"; items?: MenuItem[] };
+		tips?: { enable?: boolean; messages?: string[]; duration?: number };
+		responsive?: { hideOnMobile?: boolean; mobileBreakpoint?: number };
+	};
+}
+
+const { config } = Astro.props;
+
+const corner = config.corner ?? "bottom-left";
+const offsetX = config.offset?.x ?? 16;
+const offsetY = config.offset?.y ?? 16;
+const width = config.width ?? 200;
+const menuItems = (config.menus?.items ?? []).filter(
+	(item) => item && item.label,
+);
+// 菜单默认对齐到看板娘所在的那一侧
+const menuAlign =
+	config.menus?.align ?? (corner.includes("right") ? "right" : "left");
+
+// 初始停靠位置的 inline 样式
+const anchorStyle = [
+	corner.includes("right") ? `right:${offsetX}px` : `left:${offsetX}px`,
+	corner.includes("top") ? `top:${offsetY}px` : `bottom:${offsetY}px`,
+].join(";");
+---
+
+{
+	config.enable && (
+		<div
+			id="image-mascot"
+			class="image-mascot"
+			style={`--mascot-width:${width}px; --mascot-z:${config.zIndex ?? 999}; ${anchorStyle};`}
+			data-draggable={config.draggable === false ? "0" : "1"}
+			data-corner={corner}
+			data-offset-x={offsetX}
+			data-offset-y={offsetY}
+			data-menus={JSON.stringify(menuItems)}
+			data-tips={JSON.stringify(config.tips ?? {})}
+			data-responsive={JSON.stringify(config.responsive ?? {})}
+		>
+			{menuItems.length > 0 && (
+				<div class="image-mascot__menu" data-align={menuAlign} data-open="false">
+					{menuItems.map((item) => (
+						<button
+							type="button"
+							class="image-mascot__menu-item"
+							data-action={item.action}
+							title={item.label}
+						>
+							{item.icon && <Icon name={item.icon} class="text-[1rem]" />}
+							<span>{item.label}</span>
+						</button>
+					))}
+				</div>
+			)}
+			<div class="image-mascot__tip" data-show="false"></div>
+			<img
+				class="image-mascot__img"
+				src={config.image}
+				alt="看板娘"
+				draggable="false"
+				loading="lazy"
+			/>
+		</div>
+	)
+}
+
+<style>
+	.image-mascot {
+		position: fixed;
+		z-index: var(--mascot-z, 999);
+		width: var(--mascot-width, 200px);
+		/* 只让图片本身接收事件，避免挡住页面其他区域 */
+		pointer-events: none;
+		user-select: none;
+		-webkit-user-select: none;
+		transition: opacity 0.3s ease;
+	}
+
+	.image-mascot__img {
+		display: block;
+		width: 100%;
+		height: auto;
+		pointer-events: auto;
+		cursor: grab;
+		-webkit-user-drag: none;
+		transition: transform 0.25s ease;
+		filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.18));
+	}
+
+	.image-mascot[data-draggable="0"] .image-mascot__img {
+		cursor: pointer;
+	}
+
+	/* 悬停时轻微上浮，显得活泼一点 */
+	.image-mascot:hover .image-mascot__img {
+		transform: translateY(-4px) scale(1.03);
+	}
+
+	.image-mascot__img:active {
+		cursor: grabbing;
+	}
+
+	.image-mascot__menu {
+		position: absolute;
+		bottom: calc(100% + 10px);
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		padding: 6px;
+		border-radius: var(--radius-large, 0.75rem);
+		background: var(--card-bg, rgba(255, 255, 255, 0.92));
+		border: 1px solid var(--line-divider, rgba(0, 0, 0, 0.08));
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+		backdrop-filter: blur(8px);
+		pointer-events: auto;
+		opacity: 0;
+		visibility: hidden;
+		transform: translateY(6px) scale(0.96);
+		transform-origin: bottom center;
+		transition:
+			opacity 0.18s ease,
+			transform 0.18s ease,
+			visibility 0.18s;
+	}
+
+	.image-mascot__menu[data-align="left"] {
+		left: 0;
+	}
+
+	.image-mascot__menu[data-align="right"] {
+		right: 0;
+	}
+
+	.image-mascot__menu[data-open="true"] {
+		opacity: 1;
+		visibility: visible;
+		transform: translateY(0) scale(1);
+	}
+
+	.image-mascot__menu-item {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		white-space: nowrap;
+		padding: 0.4rem 0.7rem;
+		border-radius: calc(var(--radius-large, 0.75rem) - 0.25rem);
+		font-size: 0.8rem;
+		font-weight: 500;
+		color: var(--btn-content, #333);
+		background: var(--btn-regular-bg, rgba(0, 0, 0, 0.05));
+		border: none;
+		cursor: pointer;
+		transition:
+			background-color 0.2s ease,
+			transform 0.15s ease;
+	}
+
+	.image-mascot__menu-item:hover {
+		background: var(--btn-regular-bg-hover, rgba(0, 0, 0, 0.09));
+	}
+
+	.image-mascot__menu-item:active {
+		transform: scale(0.96);
+	}
+
+	.image-mascot__tip {
+		position: absolute;
+		bottom: calc(100% + 10px);
+		left: 50%;
+		max-width: 190px;
+		width: max-content;
+		padding: 0.45rem 0.7rem;
+		border-radius: var(--radius-large, 0.75rem);
+		font-size: 0.75rem;
+		line-height: 1.45;
+		color: var(--btn-content, #333);
+		background: var(--card-bg, rgba(255, 255, 255, 0.95));
+		border: 1px solid var(--line-divider, rgba(0, 0, 0, 0.08));
+		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+		transform: translate(-50%, 6px);
+		opacity: 0;
+		visibility: hidden;
+		transition:
+			opacity 0.22s ease,
+			transform 0.22s ease,
+			visibility 0.22s;
+		pointer-events: none;
+	}
+
+	.image-mascot__tip[data-show="true"] {
+		opacity: 1;
+		visibility: visible;
+		transform: translate(-50%, 0);
+	}
+</style>
+
+<script>
+	(function () {
+		const STORAGE_KEY = "image-mascot-position";
+		const HIDDEN_KEY = "image-mascot-hidden";
+		// 小于这个位移视为「点击」，不算拖动
+		const MIN_MOVE = 4;
+
+		function init() {
+			const el = document.getElementById("image-mascot");
+			if (!el) return;
+			// swup 切页会重跑脚本，避免重复绑定（元素是布局级的，不随切页重建）
+			if (el.dataset.mascotReady === "1") return;
+			el.dataset.mascotReady = "1";
+
+			const img = el.querySelector<HTMLImageElement>(".image-mascot__img");
+			const menu = el.querySelector<HTMLElement>(".image-mascot__menu");
+			const tip = el.querySelector<HTMLElement>(".image-mascot__tip");
+			const draggable = el.dataset.draggable !== "0";
+			const responsive = JSON.parse(el.dataset.responsive || "{}");
+			const tips = JSON.parse(el.dataset.tips || "{}");
+			const menuItems = JSON.parse(el.dataset.menus || "[]");
+
+			// ── 移动端隐藏 ─────────────────────────────
+			const hideOnMobile = responsive.hideOnMobile !== false;
+			const breakpoint = responsive.mobileBreakpoint || 768;
+			function applyResponsive() {
+				if (hideOnMobile && window.innerWidth <= breakpoint) {
+					el.style.display = "none";
+				} else {
+					el.style.display = "";
+				}
+			}
+
+			// ── 位置：优先用上次拖动保存的位置 ──────────
+			function applyPosition(left: number, top: number) {
+				const w = el.offsetWidth || 0;
+				const h = el.offsetHeight || 0;
+				// 夹在视口内，避免拖出屏幕后找不回来
+				const l = Math.min(Math.max(left, 0), Math.max(0, window.innerWidth - w));
+				const t = Math.min(Math.max(top, 0), Math.max(0, window.innerHeight - h));
+				el.style.left = `${l}px`;
+				el.style.top = `${t}px`;
+				el.style.right = "auto";
+				el.style.bottom = "auto";
+			}
+
+			function resetPosition() {
+				try {
+					localStorage.removeItem(STORAGE_KEY);
+				} catch {
+					/* 忽略 */
+				}
+				el.style.left = "";
+				el.style.top = "";
+				const corner = el.dataset.corner || "bottom-left";
+				const ox = Number(el.dataset.offsetX ?? 16);
+				const oy = Number(el.dataset.offsetY ?? 16);
+				el.style.right = corner.includes("right") ? `${ox}px` : "";
+				el.style.left = corner.includes("right") ? "" : `${ox}px`;
+				el.style.bottom = corner.includes("top") ? "" : `${oy}px`;
+				el.style.top = corner.includes("top") ? `${oy}px` : "";
+			}
+
+			try {
+				// 上次手动隐藏过（同一浏览器会话内不再显示）
+				if (sessionStorage.getItem(HIDDEN_KEY) === "1") {
+					el.style.display = "none";
+					return;
+				}
+				const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+				if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+					applyPosition(saved.left, saved.top);
+				}
+			} catch {
+				/* 忽略解析失败 */
+			}
+
+			applyResponsive();
+			window.addEventListener("resize", () => {
+				applyResponsive();
+				if (!el.style.left) return;
+				const rect = el.getBoundingClientRect();
+				applyPosition(rect.left, rect.top);
+			});
+
+			// ── 气泡文案 ───────────────────────────────
+			let tipTimer: number | undefined;
+			function showTip() {
+				if (tips.enable === false || !tip) return;
+				const messages: string[] = tips.messages || [];
+				if (messages.length === 0) return;
+				const text = messages[Math.floor(Math.random() * messages.length)];
+				tip.textContent = text;
+				tip.dataset.show = "true";
+				clearTimeout(tipTimer);
+				tipTimer = window.setTimeout(() => {
+					tip.dataset.show = "false";
+				}, tips.duration || 3000);
+			}
+
+			// ── 菜单 ───────────────────────────────────
+			function toggleMenu(open?: boolean) {
+				if (!menu) return;
+				const next = open ?? menu.dataset.open !== "true";
+				menu.dataset.open = next ? "true" : "false";
+			}
+
+			const actions: Record<string, () => void> = {
+				home: () => {
+					window.location.href = "/";
+				},
+				scrollToTop: () =>
+					window.scrollTo({ top: 0, behavior: "smooth" }),
+				resetPosition: () => {
+					resetPosition();
+					toggleMenu(false);
+				},
+				hide: () => {
+					try {
+						sessionStorage.setItem(HIDDEN_KEY, "1");
+					} catch {
+						/* 忽略 */
+					}
+					el.style.display = "none";
+				},
+			};
+
+			menu?.querySelectorAll<HTMLElement>(".image-mascot__menu-item").forEach((btn) => {
+				btn.addEventListener("click", (e) => {
+					e.stopPropagation();
+					const action = btn.dataset.action || "";
+					actions[action]?.();
+				});
+			});
+
+			// 点击别处关闭菜单
+			document.addEventListener("pointerdown", (e) => {
+				if (!menu || menu.dataset.open !== "true") return;
+				if (!el.contains(e.target as Node)) toggleMenu(false);
+			});
+
+			// ── 拖动 + 点击 ─────────────────────────────
+			let dragging = false;
+			let moved = false;
+			let startX = 0;
+			let startY = 0;
+			let startLeft = 0;
+			let startTop = 0;
+			// 拖动结束后浏览器会补发一次 click，用它拦掉，避免误弹菜单
+			let suppressClick = false;
+
+			function onMove(e: PointerEvent) {
+				if (!dragging) return;
+				const dx = e.clientX - startX;
+				const dy = e.clientY - startY;
+				if (!moved && Math.hypot(dx, dy) < MIN_MOVE) return;
+				moved = true;
+				suppressClick = true;
+				toggleMenu(false);
+				applyPosition(startLeft + dx, startTop + dy);
+			}
+
+			function onUp() {
+				window.removeEventListener("pointermove", onMove);
+				window.removeEventListener("pointerup", onUp);
+				window.removeEventListener("pointercancel", onUp);
+				if (!dragging) return;
+				dragging = false;
+				if (moved) {
+					const rect = el.getBoundingClientRect();
+					try {
+						localStorage.setItem(
+							STORAGE_KEY,
+							JSON.stringify({ left: rect.left, top: rect.top }),
+						);
+					} catch {
+						/* 忽略 */
+					}
+				}
+			}
+
+			img?.addEventListener("pointerdown", (e) => {
+				if (e.pointerType === "mouse" && e.button !== 0) return;
+				if (!draggable) return;
+				const rect = el.getBoundingClientRect();
+				dragging = true;
+				moved = false;
+				startX = e.clientX;
+				startY = e.clientY;
+				startLeft = rect.left;
+				startTop = rect.top;
+				window.addEventListener("pointermove", onMove);
+				window.addEventListener("pointerup", onUp);
+				window.addEventListener("pointercancel", onUp);
+			});
+
+			img?.addEventListener(
+				"click",
+				(e) => {
+					if (suppressClick) {
+						e.stopPropagation();
+						e.preventDefault();
+						suppressClick = false;
+						return;
+					}
+					// 点击（非拖动）→ 弹菜单 + 随机气泡
+					toggleMenu();
+					showTip();
+				},
+				true,
+			);
+
+			// 首次进入页面时打个招呼
+			window.setTimeout(showTip, 1200);
+
+			// 菜单项为 0 时不需要菜单逻辑，quiet 处理
+			if (menuItems.length === 0 && menu) menu.style.display = "none";
+		}
+
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", init);
+		} else {
+			init();
+		}
+	})();
+</script>
