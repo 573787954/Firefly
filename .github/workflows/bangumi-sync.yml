@@ -59,6 +59,7 @@ jobs:
         if: always()
         run: |
           mkdir -p ci-diagnostics
+          UA="573787954-blog/1.0 (https://github.com/573787954/Firefly)"
           {
             echo "fetch step outcome: ${{ steps.fetch.outcome }}"
             echo "runner: $(uname -a)"
@@ -74,6 +75,16 @@ jobs:
             curl -sS -m 25 -o /dev/null -w "http_code=%{http_code} time=%{time_total}s\n" \
               -A "573787954-blog/1.0 (https://github.com/573787954/Firefly)" \
               https://api.bgm.tv/v0/subjects/8 || echo "curl 失败，退出码 $?"
+            echo
+            echo "--- 用户是否存在: GET /v0/users/1288644 ---"
+            curl -sS -m 25 -A "$UA" -o /tmp/dsh-user.json -w "http_code=%{http_code}\n" \
+              https://api.bgm.tv/v0/users/1288644 || echo "curl 失败，退出码 $?"
+            head -c 400 /tmp/dsh-user.json; echo
+            echo
+            echo "--- 收藏原始响应: GET /v0/users/1288644/collections?subject_type=2&limit=3 ---"
+            curl -sS -m 25 -A "$UA" -o /tmp/dsh-col.json -w "http_code=%{http_code}\n" \
+              "https://api.bgm.tv/v0/users/1288644/collections?subject_type=2&limit=3&offset=0" || echo "curl 失败，退出码 $?"
+            head -c 600 /tmp/dsh-col.json; echo
             echo
             echo "--- 生成的文件 ---"
             ls -la src/constants/ 2>&1 || true
