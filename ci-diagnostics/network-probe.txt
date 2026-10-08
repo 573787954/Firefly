@@ -1,0 +1,26 @@
+fetch step outcome: failure
+runner: Linux runnervm8df0l 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+node: v22.23.3
+
+--- DNS: api.bgm.tv ---
+2606:4700:20::681a:917 api.bgm.tv
+2606:4700:20::681a:817 api.bgm.tv
+2606:4700:20::ac43:4943 api.bgm.tv
+
+--- DNS: api.bangumi.one ---
+2a06:98c1:3103::ac40:9052 www.okx.com.cdn.cloudflare.net api.bangumi.one bgp.bangumi.one cf.090227.xyz cf.hw.090227.xyz
+2a06:98c1:3108::6812:2bae www.okx.com.cdn.cloudflare.net api.bangumi.one bgp.bangumi.one cf.090227.xyz cf.hw.090227.xyz
+
+--- curl 官方接口 ---
+http_code=200 time=0.046418s
+
+--- 生成的文件 ---
+total 44
+drwxr-xr-x  2 runner runner  4096 Oct  8 07:47 .
+drwxr-xr-x 16 runner runner  4096 Oct  8 07:47 ..
+-rw-r--r--  1 runner runner   767 Oct  8 07:47 bangumi-sync-status.json
+-rw-r--r--  1 runner runner  1312 Oct  8 07:47 constants.ts
+-rw-r--r--  1 runner runner   427 Oct  8 07:47 github-card-data.json
+-rw-r--r--  1 runner runner   772 Oct  8 07:47 icon.ts
+-rw-r--r--  1 runner runner 14565 Oct  8 07:47 icons-data.json
+-rw-r--r--  1 runner runner  2405 Oct  8 07:47 lqips.json
