@@ -1,5 +1,0 @@
-[bangumi] 抓取用户 1288644 的收藏（接口 https://api.bgm.tv）
-[bangumi] 网络探测: {"host":"api.bgm.tv","dns":["104.26.9.23","172.67.73.67","104.26.8.23"],"httpStatus":200,"bodyPreview":"{\"date\":\"2008-04-06\",\"platform\":\"TV\",\"images\":{\"small\":\"https://lain.bgm.tv/r/200/pic/cover/l/c9/f0/8_wK0z3.jpg\",\"grid\":\"https://lain.bgm.tv/r/100/pic/cover/l/c9/f0/8_wK0z3.jpg\",\"large\":\"https://lain.","error":null}
-[bangumi] 已写入诊断文件 src/constants/bangumi-sync-status.json
-[bangumi] 一条数据都没抓到，放弃写入数据文件（避免覆盖已有数据）
-exit_code=1
