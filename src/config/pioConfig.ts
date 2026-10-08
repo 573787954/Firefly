@@ -198,9 +198,11 @@ export const imageMascotConfig: ImageMascotConfig = {
 	// 显示宽度（px），高度按图片比例自适应
 	width: 200,
 	// 默认停留角落：bottom-left | bottom-right | top-left | top-right
-	corner: "bottom-left",
+	corner: "bottom-right",
 	// 距边缘的间距（px）
-	offset: { x: 16, y: 16 },
+	// x 用 72 而不是 16：主题右下角有一竖排悬浮按钮（返回顶部/目录等，right:1rem; bottom:4rem），
+	// 留出这段距离就不会被看板娘挡住；想贴紧右边缘就改成 16
+	offset: { x: 72, y: 16 },
 	// 是否允许拖动（拖动后的位置记在浏览器本地，刷新后保持；菜单里有「重置位置」还原）
 	draggable: true,
 	// 层级

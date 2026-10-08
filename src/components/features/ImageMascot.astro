@@ -84,13 +84,15 @@ const anchorStyle = [
 				</div>
 			)}
 			<div class="image-mascot__tip" data-show="false"></div>
-			<img
-				class="image-mascot__img"
-				src={config.image}
-				alt="看板娘"
-				draggable="false"
-				loading="lazy"
-			/>
+			<div class="image-mascot__inner">
+				<img
+					class="image-mascot__img"
+					src={config.image}
+					alt="看板娘"
+					draggable="false"
+					loading="lazy"
+				/>
+			</div>
 		</div>
 	)
 }
@@ -107,6 +109,11 @@ const anchorStyle = [
 		transition: opacity 0.3s ease;
 	}
 
+	.image-mascot__inner {
+		pointer-events: auto;
+		transition: transform 0.25s ease;
+	}
+
 	.image-mascot__img {
 		display: block;
 		width: 100%;
@@ -114,21 +121,64 @@ const anchorStyle = [
 		pointer-events: auto;
 		cursor: grab;
 		-webkit-user-drag: none;
-		transition: transform 0.25s ease;
 		filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.18));
+		transform-origin: 50% 100%;
+		/* 静态图片靠这段动画「活」起来：缓慢上下浮动 + 轻微摇摆 */
+		animation: image-mascot-float 3.6s ease-in-out infinite;
 	}
 
 	.image-mascot[data-draggable="0"] .image-mascot__img {
 		cursor: pointer;
 	}
 
-	/* 悬停时轻微上浮，显得活泼一点 */
-	.image-mascot:hover .image-mascot__img {
-		transform: translateY(-4px) scale(1.03);
+	/* 悬停时轻微上浮放大（放在外层，避免和浮动动画抢 transform） */
+	.image-mascot:hover .image-mascot__inner {
+		transform: translateY(-4px) scale(1.04);
 	}
 
 	.image-mascot__img:active {
 		cursor: grabbing;
+	}
+
+	/* 点击时弹跳一下 */
+	.image-mascot[data-pop="true"] .image-mascot__img {
+		animation: image-mascot-pop 0.5s ease;
+	}
+
+	@keyframes image-mascot-float {
+		0%,
+		100% {
+			transform: translateY(0) rotate(-1deg);
+		}
+		50% {
+			transform: translateY(-9px) rotate(1.5deg);
+		}
+	}
+
+	@keyframes image-mascot-pop {
+		0% {
+			transform: translateY(0) scale(1);
+		}
+		35% {
+			transform: translateY(-18px) scale(1.06, 0.96);
+		}
+		70% {
+			transform: translateY(0) scale(0.97, 1.04);
+		}
+		100% {
+			transform: translateY(0) scale(1);
+		}
+	}
+
+	/* 尊重系统的「减弱动态效果」 */
+	@media (prefers-reduced-motion: reduce) {
+		.image-mascot__img,
+		.image-mascot[data-pop="true"] .image-mascot__img {
+			animation: none;
+		}
+		.image-mascot__inner {
+			transition: none;
+		}
 	}
 
 	.image-mascot__menu {
@@ -430,9 +480,13 @@ const anchorStyle = [
 						suppressClick = false;
 						return;
 					}
-					// 点击（非拖动）→ 弹菜单 + 随机气泡
+					// 点击（非拖动）→ 弹菜单 + 随机气泡 + 跳一下
 					toggleMenu();
 					showTip();
+					el.dataset.pop = "true";
+					window.setTimeout(() => {
+						el.dataset.pop = "false";
+					}, 520);
 				},
 				true,
 			);
