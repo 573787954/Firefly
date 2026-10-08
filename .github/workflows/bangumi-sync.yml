@@ -4,6 +4,9 @@ name: Sync Bangumi data
 #   本机网络对 Bangumi 系域名（api.bgm.tv / api.bangumi.pro / api.bangumi.one）存在 SNI 阻断，
 #   浏览器端 dynamic 模式必然拉取失败。这里用 GitHub 的服务器定时抓取收藏数据，
 #   提交进仓库后站点直接读本地 JSON（src/constants/bangumi-data.json），无需任何代理。
+#
+# 诊断：脚本输出与网络探测结果会写入 ci-diagnostics/ 并提交回仓库，
+#       这样在无法查看 Actions 日志时也能排查问题。
 
 on:
   schedule:
@@ -13,7 +16,7 @@ on:
   workflow_dispatch:
   push:
     # 本工作流或抓取脚本变更时立刻跑一次；
-    # 注意：数据文件本身的提交不在 paths 里，避免“提交 → 触发 → 再提交”的循环
+    # 注意：数据文件与诊断目录的提交不在 paths 里，避免“提交 → 触发 → 再提交”的循环
     paths:
       - ".github/workflows/bangumi-sync.yml"
       - "scripts/fetch-bangumi.mjs"
@@ -41,17 +44,50 @@ jobs:
 
       - name: Fetch Bangumi collection
         id: fetch
-        # 抓取失败时不要让任务直接中断，先把诊断文件提交回仓库便于排查
+        # 抓取失败时不要直接中断，先让后面的步骤把诊断信息提交回仓库
         continue-on-error: true
-        run: node scripts/fetch-bangumi.mjs
+        run: |
+          mkdir -p ci-diagnostics
+          set +e
+          node scripts/fetch-bangumi.mjs > ci-diagnostics/fetch-output.txt 2>&1
+          code=$?
+          echo "exit_code=$code" >> ci-diagnostics/fetch-output.txt
+          echo "脚本退出码: $code"
+          exit $code
 
-      - name: Commit and push if changed
+      - name: Collect diagnostics
+        if: always()
+        run: |
+          mkdir -p ci-diagnostics
+          {
+            echo "fetch step outcome: ${{ steps.fetch.outcome }}"
+            echo "runner: $(uname -a)"
+            echo "node: $(node --version)"
+            echo
+            echo "--- DNS: api.bgm.tv ---"
+            getent hosts api.bgm.tv || echo "(getent 无结果)"
+            echo
+            echo "--- DNS: api.bangumi.one ---"
+            getent hosts api.bangumi.one || echo "(getent 无结果)"
+            echo
+            echo "--- curl 官方接口 ---"
+            curl -sS -m 25 -o /dev/null -w "http_code=%{http_code} time=%{time_total}s\n" \
+              -A "573787954-blog/1.0 (https://github.com/573787954/Firefly)" \
+              https://api.bgm.tv/v0/subjects/8 || echo "curl 失败，退出码 $?"
+            echo
+            echo "--- 生成的文件 ---"
+            ls -la src/constants/ 2>&1 || true
+          } > ci-diagnostics/network-probe.txt 2>&1
+
+      - name: Commit and push results
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/constants/bangumi-data.json src/constants/bangumi-sync-status.json 2>/dev/null || true
+          git add -A src/constants/bangumi-data.json src/constants/bangumi-sync-status.json ci-diagnostics 2>/dev/null || true
+          git status --short
           if git diff --staged --quiet; then
-            echo "数据无变化，跳过提交"
+            echo "无变化，跳过提交"
           else
             git commit -m "chore: 同步 Bangumi 收藏数据"
             git push
@@ -60,5 +96,5 @@ jobs:
       - name: Fail if fetch failed
         if: steps.fetch.outcome == 'failure'
         run: |
-          echo "抓取失败，详见 src/constants/bangumi-sync-status.json"
+          echo "抓取失败，详见 ci-diagnostics/ 与 src/constants/bangumi-sync-status.json"
           exit 1
