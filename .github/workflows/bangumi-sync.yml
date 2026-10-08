@@ -1,28 +1,31 @@
 name: Sync Bangumi data
 
-# 状态：已搁置（2026-10 起暂停自动运行）
+# 状态：已恢复自动同步（2026-10）
 #
 # 背景：本机网络对 Bangumi 系域名（api.bgm.tv / api.bangumi.pro / api.bangumi.one）存在 SNI 阻断，
 #       浏览器端 dynamic 模式必然拉取失败，于是改用 GitHub 的服务器抓取并提交进仓库。
 #
 # 已验证：GitHub Runner 能正常访问 api.bgm.tv（探测返回 HTTP 200，DNS 解析正常）——
-#         **这条路不需要翻墙**。当前唯一的问题是拉到的收藏是空数组，
-#         即 siteConfig.bangumi.userId（1288644）不正确，或该用户的收藏未设为公开。
+#         **这条路不需要翻墙**。UID 1288644 也已确认正确。
+#         （首次运行拿到空数组，是因为当时该账号刚注册、收藏还是空的。）
 #
-# 想恢复：把下面 on: 里的 schedule 取消注释即可每天自动同步；
-#         也可以直接在 Actions 页面手动触发（workflow_dispatch）。
-#         确认 userId 正确 / 收藏公开后，手动跑一次就会生成 src/constants/bangumi-data.json。
+# 触发方式：每天定时 + 改动本工作流/抓取脚本时自动重跑 + Actions 页面手动触发。
 
 on:
-  # schedule:
-  #   # 每天 03:17 UTC（北京时间 11:17）同步一次
-  #   - cron: "17 3 * * *"
+  schedule:
+    # 每天 03:17 UTC（北京时间 11:17）同步一次
+    - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       user_id:
         description: "Bangumi 用户 ID（留空则用仓库里的默认值）"
         required: false
         default: ""
+  # 改动本工作流或抓取脚本时立即重跑一次（相当于手动「重新同步」的便捷入口）
+  push:
+    paths:
+      - ".github/workflows/bangumi-sync.yml"
+      - "scripts/fetch-bangumi.mjs"
 
 permissions:
   contents: write
