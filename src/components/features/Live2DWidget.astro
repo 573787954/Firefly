@@ -129,11 +129,26 @@ function serializeMenus(menus: Props["config"]["menus"]) {
 
 	// 菜单动作映射
 	let currentModelIndex = 0;
+	// 被拖动的看板娘元素，以及创建时的默认角落（供「重置位置」使用）
+	let draggableEl: HTMLElement | null = null;
+	let defaultCorner = "bottom-left";
 	const menuActions: Record<string, (widget: any) => void> = {
 		home: () => (window.location.href = "/"),
 		scrollToTop: () => window.scrollTo({ top: 0, behavior: "smooth" }),
 		sleep: (widget) => widget.sleep(),
 		github: () => window.open("https://github.com/573787954/Firefly", "_blank"),
+		resetPosition: () => {
+			try {
+				localStorage.removeItem("l2d-widget-position");
+			} catch {
+				// 忽略
+			}
+			if (!draggableEl) return;
+			draggableEl.style.left = "";
+			draggableEl.style.top = "";
+			draggableEl.style.right = defaultCorner === "bottom-right" ? "0" : "";
+			draggableEl.style.bottom = "0";
+		},
 		switchModel: (widget) => {
 			const container = document.getElementById("l2d-widget-container");
 			const models = JSON.parse(container?.dataset.models || "[]");
@@ -141,6 +156,113 @@ function serializeMenus(menus: Props["config"]["menus"]) {
 			widget.switchModel(currentModelIndex);
 		},
 	};
+
+	// ── 让看板娘可以被拖动 ────────────────────────────────────────
+	// l2d-widget 会把根元素直接挂到 document.body，且只按 position 配置固定左下/右下；
+	// 这里接管它的 left/top，实现自由拖动，并把位置记在 localStorage 里。
+	function makeDraggable(el: HTMLElement) {
+		const STORAGE_KEY = "l2d-widget-position";
+		// 小于这个位移视为「点击」，交给模型自身的交互（点模型弹菜单）
+		const MIN_MOVE = 4;
+
+		const apply = (left: number, top: number) => {
+			const w = el.offsetWidth || 0;
+			const h = el.offsetHeight || 0;
+			// 限制在视口内，避免拖出屏幕后找不回来
+			const clampedLeft = Math.min(Math.max(left, 0), Math.max(0, window.innerWidth - w));
+			const clampedTop = Math.min(Math.max(top, 0), Math.max(0, window.innerHeight - h));
+			el.style.left = `${clampedLeft}px`;
+			el.style.top = `${clampedTop}px`;
+			el.style.right = "auto";
+			el.style.bottom = "auto";
+		};
+
+		// 恢复上次拖到的位置
+		try {
+			const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+			if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+				apply(saved.left, saved.top);
+			}
+		} catch {
+			// 忽略解析失败
+		}
+
+		let dragging = false;
+		let moved = false;
+		let startX = 0;
+		let startY = 0;
+		let startLeft = 0;
+		let startTop = 0;
+		// 拖动结束后浏览器还会补发一次 click，用它来拦掉，避免误触发模型菜单
+		let suppressClick = false;
+
+		el.style.cursor = "grab";
+		el.style.touchAction = "none";
+
+		function onMove(e: PointerEvent) {
+			if (!dragging) return;
+			const dx = e.clientX - startX;
+			const dy = e.clientY - startY;
+			if (!moved && Math.hypot(dx, dy) < MIN_MOVE) return;
+			moved = true;
+			suppressClick = true;
+			el.style.cursor = "grabbing";
+			apply(startLeft + dx, startTop + dy);
+		}
+
+		function onUp() {
+			window.removeEventListener("pointermove", onMove);
+			window.removeEventListener("pointerup", onUp);
+			window.removeEventListener("pointercancel", onUp);
+			if (!dragging) return;
+			dragging = false;
+			el.style.cursor = "grab";
+			if (moved) {
+				const rect = el.getBoundingClientRect();
+				try {
+					localStorage.setItem(
+						STORAGE_KEY,
+						JSON.stringify({ left: rect.left, top: rect.top }),
+					);
+				} catch {
+					// 隐私模式下 localStorage 可能不可用
+				}
+			}
+		}
+
+		el.addEventListener("pointerdown", (e) => {
+			if (e.pointerType === "mouse" && e.button !== 0) return;
+			const rect = el.getBoundingClientRect();
+			dragging = true;
+			moved = false;
+			startX = e.clientX;
+			startY = e.clientY;
+			startLeft = rect.left;
+			startTop = rect.top;
+			window.addEventListener("pointermove", onMove);
+			window.addEventListener("pointerup", onUp);
+			window.addEventListener("pointercancel", onUp);
+		});
+
+		el.addEventListener(
+			"click",
+			(e) => {
+				if (suppressClick) {
+					e.stopPropagation();
+					e.preventDefault();
+					suppressClick = false;
+				}
+			},
+			true,
+		);
+
+		// 窗口尺寸变化时重新夹取，保证不会跑到视口外
+		window.addEventListener("resize", () => {
+			if (!el.style.left) return;
+			const rect = el.getBoundingClientRect();
+			apply(rect.left, rect.top);
+		});
+	}
 
 	function initWidget() {
 		const container = document.getElementById("l2d-widget-container");
@@ -225,7 +347,18 @@ function serializeMenus(menus: Props["config"]["menus"]) {
 				}
 			}
 
+			// createWidget 不返回 DOM 元素，但它会往 body 追加一个新 div，
+			// 用前后对比把那个元素找出来，挂上拖动能力
+			const before = new Set(document.body.children);
 			createWidget(options);
+			const widgetEl = Array.from(document.body.children).find(
+				(child) => !before.has(child),
+			);
+			if (widgetEl instanceof HTMLElement) {
+				draggableEl = widgetEl;
+				defaultCorner = position;
+				makeDraggable(widgetEl);
+			}
 		} catch (e) {
 			console.error("Failed to initialize Live2D widget:", e);
 		}

@@ -137,6 +137,12 @@ export const live2dWidgetConfig: Live2DWidgetConfig = {
 				action: "switchModel",
 			},
 			{
+				// 看板娘可以直接拖动（位置记在浏览器里），拖歪了点这里还原
+				icon: "mdi:restore",
+				label: "重置位置",
+				action: "resetPosition",
+			},
+			{
 				icon: "mdi:github",
 				label: "GitHub",
 				action: "github",
