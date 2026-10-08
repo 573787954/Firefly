@@ -184,6 +184,23 @@ async function main() {
 		categories,
 	};
 
+	// 内容没变就不改写文件：否则 generatedAt 每次都不同，会导致每天产生一次
+	// 只改了时间戳的无意义提交。这样「数据更新于」显示的也是真正有变化的时间。
+	try {
+		const prev = JSON.parse(fs.readFileSync(OUT_FILE, "utf8"));
+		if (
+			prev.userId === payload.userId &&
+			JSON.stringify(prev.categories) === JSON.stringify(payload.categories)
+		) {
+			console.log(
+				"[bangumi] 收藏内容与上次一致，保持原有数据文件（不产生提交）",
+			);
+			return;
+		}
+	} catch {
+		// 首次运行或文件损坏，正常写入即可
+	}
+
 	fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });
 	fs.writeFileSync(OUT_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 	console.log(
