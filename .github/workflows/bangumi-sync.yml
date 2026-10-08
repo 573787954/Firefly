@@ -1,0 +1,55 @@
+name: Sync Bangumi data
+
+# 为什么需要这个工作流：
+#   本机网络对 Bangumi 系域名（api.bgm.tv / api.bangumi.pro / api.bangumi.one）存在 SNI 阻断，
+#   浏览器端 dynamic 模式必然拉取失败。这里用 GitHub 的服务器定时抓取收藏数据，
+#   提交进仓库后站点直接读本地 JSON（src/constants/bangumi-data.json），无需任何代理。
+
+on:
+  schedule:
+    # 每天 03:17 UTC（北京时间 11:17）同步一次
+    - cron: "17 3 * * *"
+  # 支持在 Actions 页面手动触发
+  workflow_dispatch:
+  push:
+    # 本工作流或抓取脚本变更时立刻跑一次；
+    # 注意：数据文件本身的提交不在 paths 里，避免“提交 → 触发 → 再提交”的循环
+    paths:
+      - ".github/workflows/bangumi-sync.yml"
+      - "scripts/fetch-bangumi.mjs"
+
+# 允许工作流把抓取结果提交回仓库
+permissions:
+  contents: write
+
+# 同一时间只跑一个，避免并发提交冲突
+concurrency:
+  group: bangumi-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch Bangumi collection
+        run: node scripts/fetch-bangumi.mjs
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/constants/bangumi-data.json
+          if git diff --staged --quiet; then
+            echo "数据无变化，跳过提交"
+          else
+            git commit -m "chore: 同步 Bangumi 收藏数据"
+            git push
+          fi

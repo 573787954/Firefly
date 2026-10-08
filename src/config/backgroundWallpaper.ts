@@ -97,11 +97,6 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 					url: "mailto:573787954@qq.com",
 				},
 				{
-					name: "Sponsor",
-					icon: "material-symbols:favorite",
-					url: "/sponsor/",
-				},
-				{
 					name: "RSS",
 					icon: "fa7-solid:rss",
 					url: "/rss/",

@@ -1,4 +1,5 @@
 ---
+import fs from "node:fs";
 import { Icon } from "astro-icon/components";
 import BangumiGrid from "@/components/pages/bangumi/BangumiGrid.svelte";
 import { siteConfig } from "@/config";
@@ -21,8 +22,41 @@ if (!siteConfig.pages.bangumi) {
 	return Astro.redirect("/404/");
 }
 
-// 获取构建时间
-const buildTime = formatDateI18n(new Date());
+// ── 本地缓存数据 ────────────────────────────────────────────────
+// 由 GitHub Actions 定时运行 scripts/fetch-bangumi.mjs 抓取并提交进仓库。
+// 原因：本机网络对 Bangumi 系域名存在 SNI 阻断，浏览器端 dynamic 模式必然失败。
+// 有缓存 → 直接用缓存；没有缓存 → 回退到直接请求 API（在能访问 Bangumi 的机器上仍可用）。
+type LocalBangumiData = {
+	generatedAt?: string;
+	userId?: string;
+	categories?: Record<string, UserSubjectCollection[]>;
+};
+
+let localBangumiData: LocalBangumiData | null = null;
+try {
+	const localFile = new URL("../constants/bangumi-data.json", import.meta.url);
+	if (fs.existsSync(localFile)) {
+		localBangumiData = JSON.parse(
+			fs.readFileSync(localFile, "utf8"),
+		) as LocalBangumiData;
+		console.log(
+			`[Bangumi] ✅ 使用本地缓存数据（生成于 ${localBangumiData.generatedAt ?? "未知时间"}）`,
+		);
+	} else {
+		console.log(
+			"[Bangumi] 未找到本地缓存 src/constants/bangumi-data.json，将回退到直接请求 API",
+		);
+	}
+} catch (error) {
+	console.warn("[Bangumi] 读取本地缓存失败，将回退到直接请求 API：", error);
+}
+
+// 获取构建时间（有本地缓存时显示缓存的数据更新时间）
+const buildTime = formatDateI18n(
+	localBangumiData?.generatedAt
+		? new Date(localBangumiData.generatedAt)
+		: new Date(),
+);
 
 ////////////// Bangumi 配置 ////////////////////////
 const bangumiConfig = {
@@ -167,11 +201,16 @@ if (!isDynamic) {
 		if (enabled && categoryMap[categoryKey as keyof typeof categoryMap]) {
 			const categoryInfo = categoryMap[categoryKey as keyof typeof categoryMap];
 			try {
-				const data = await fetchBangumiData(
-					// biome-ignore lint/style/noNonNullAssertion: Checked by isUserIdConfigured
-					bangumiConfig.username!,
-					categoryInfo.subjectType,
-				);
+				// 优先用本地缓存（GitHub Actions 定时抓取写入），没有再回退到请求 API
+				const cached = localBangumiData?.categories?.[categoryKey];
+				const data =
+					cached && cached.length > 0
+						? cached
+						: await fetchBangumiData(
+								// biome-ignore lint/style/noNonNullAssertion: Checked by isUserIdConfigured
+								bangumiConfig.username!,
+								categoryInfo.subjectType,
+							);
 				// NSFW 拦截：hide 模式下过滤掉 NSFW 条目，保持标签页计数一致
 				const filteredData = filterNsfw(
 					data,

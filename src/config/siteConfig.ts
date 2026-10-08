@@ -27,8 +27,8 @@ const pages = resolvePageToggles({
 	booknav: true,
 	// 哔哩哔哩追番页面开关
 	bilibili: false,
-	// 番组计划页面开关
-	bangumi: false,
+	// 番组计划页面开关（已开启：导航栏右侧有独立入口，同时「我的」菜单里也会出现）
+	bangumi: true,
 	// VNDB页面开关
 	vndb: false,
 	// MyAnimeList页面开关
@@ -36,8 +36,8 @@ const pages = resolvePageToggles({
 
 	// ── 关于 (About) ──────────────────────────────────
 
-	// 打赏页面开关
-	sponsor: true,
+	// 打赏页面开关（已关闭：导航项、/sponsor/ 页面、文章页底部打赏按钮都会消失）
+	sponsor: false,
 });
 
 export const siteConfig: SiteConfig = {
@@ -268,15 +268,19 @@ export const siteConfig: SiteConfig = {
 	// ── 番组计划bangumi配置 ──────────────────────────────────
 	bangumi: {
 		// Bangumi用户ID
-		userId: "1143164",
-		// 数据模式：static=构建时获取，dynamic=客户端实时获取
-		// static 模式在构建时获取数据并静态渲染，部署后数据不更新
-		// dynamic 模式在浏览器中实时请求 API，始终显示最新数据
-		mode: "dynamic",
+		userId: "1288644",
+		// 数据模式：static=构建时读取（优先用仓库里的本地缓存），dynamic=客户端实时请求 API
+		// 本机网络无法访问 Bangumi，dynamic 模式必然失败，因此固定用 static：
+		// 数据由 GitHub Actions（.github/workflows/bangumi-sync.yml）每天抓取写入
+		// src/constants/bangumi-data.json，站点直接读本地文件，无需代理
+		mode: "static",
 		// Bangumi API 地址
-		apiUrl: "https://api.bangumi.pro",
+		// 官方文档当前推荐：https://api.bangumi.one（旧配置里的 api.bangumi.pro 已过时）
+		// 注意：本机网络对 Bangumi 系域名存在 SNI 阻断，三个接口（api.bgm.tv / api.bangumi.pro / api.bangumi.one）都连不上
+		// 需要在能访问 Bangumi 的网络（代理/VPN）下使用，或改指向自建的反代地址
+		apiUrl: "https://api.bangumi.one",
 		// 详情页地址
-		subjectBaseUrl: "https://api.bangumi.pro/subject/",
+		subjectBaseUrl: "https://bangumi.one/subject/",
 		// 条目类型排序，数组中的类型将按顺序优先展示
 		// 可选值: "anime" | "book" | "music" | "game" | "real" (暂不支持"real"类型)
 		// 未列出的类型将按默认顺序排在后面
