@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T07:58:17.219Z",
+  "generatedAt": "2026-10-09T10:30:24.408Z",
   "userId": "1288644",
   "apiUrl": "https://api.bgm.tv",
   "counts": {
@@ -30,53 +30,53 @@
           "tags": [
             {
               "name": "搞笑",
-              "count": 1982,
-              "total_count": 652705
+              "count": 2002,
+              "total_count": 653021
             },
             {
               "name": "漫画改",
-              "count": 1599,
-              "total_count": 884580
+              "count": 1611,
+              "total_count": 885229
             },
             {
               "name": "2026年7月",
-              "count": 1571,
-              "total_count": 28690
+              "count": 1579,
+              "total_count": 28816
             },
             {
               "name": "日常",
-              "count": 1363,
-              "total_count": 411193
+              "count": 1378,
+              "total_count": 411511
             },
             {
               "name": "TV",
-              "count": 1268,
-              "total_count": 1434007
-            },
-            {
-              "name": "BiburyAnimationStudios",
-              "count": 874,
-              "total_count": 5697
+              "count": 1272,
+              "total_count": 1435073
             },
             {
               "name": "重口",
-              "count": 873,
-              "total_count": 9941
+              "count": 887,
+              "total_count": 9955
+            },
+            {
+              "name": "BiburyAnimationStudios",
+              "count": 883,
+              "total_count": 5710
             },
             {
               "name": "日本",
-              "count": 727,
-              "total_count": 309155
+              "count": 729,
+              "total_count": 309507
             },
             {
               "name": "2026",
-              "count": 721,
-              "total_count": 52127
+              "count": 729,
+              "total_count": 52452
             },
             {
               "name": "喜剧",
-              "count": 667,
-              "total_count": 38348
+              "count": 683,
+              "total_count": 38495
             }
           ],
           "score": 7.5,
@@ -84,8 +84,8 @@
           "id": 622206,
           "eps": 12,
           "volumes": 0,
-          "collection_total": 23673,
-          "rank": 881
+          "collection_total": 23865,
+          "rank": 879
         },
         "subject_id": 622206,
         "vol_status": 0,
