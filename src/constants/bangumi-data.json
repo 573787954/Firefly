@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T11:11:29.918Z",
+  "generatedAt": "2026-11-17T11:47:58.430Z",
   "userId": "1288644",
   "apiUrl": "https://api.bgm.tv",
   "counts": {
@@ -30,53 +30,53 @@
           "tags": [
             {
               "name": "搞笑",
-              "count": 2327,
-              "total_count": 661353
+              "count": 2329,
+              "total_count": 661590
             },
             {
               "name": "漫画改",
-              "count": 1790,
-              "total_count": 897862
+              "count": 1792,
+              "total_count": 898139
             },
             {
               "name": "2026年7月",
-              "count": 1728,
-              "total_count": 30638
+              "count": 1729,
+              "total_count": 30622
             },
             {
               "name": "日常",
-              "count": 1551,
-              "total_count": 418778
+              "count": 1553,
+              "total_count": 418943
             },
             {
               "name": "TV",
               "count": 1419,
-              "total_count": 1455071
+              "total_count": 1455388
             },
             {
               "name": "重口",
-              "count": 1085,
-              "total_count": 10198
+              "count": 1087,
+              "total_count": 10200
             },
             {
               "name": "BiburyAnimationStudios",
-              "count": 945,
-              "total_count": 5857
+              "count": 946,
+              "total_count": 5859
             },
             {
               "name": "喜剧",
-              "count": 858,
-              "total_count": 40962
+              "count": 861,
+              "total_count": 41041
             },
             {
               "name": "日本",
               "count": 806,
-              "total_count": 319636
+              "total_count": 319793
             },
             {
               "name": "2026",
               "count": 773,
-              "total_count": 57773
+              "total_count": 57847
             }
           ],
           "score": 7.5,
@@ -84,8 +84,8 @@
           "id": 622206,
           "eps": 12,
           "volumes": 0,
-          "collection_total": 27414,
-          "rank": 835
+          "collection_total": 27475,
+          "rank": 834
         },
         "subject_id": 622206,
         "vol_status": 0,
